@@ -1,20 +1,14 @@
 const config = require('../config');
 const { cmd } = require('../command');
-const axios = require('axios');
 
-cmd({
-    pattern: "menu",
-    desc: "Show interactive menu system",
-    category: "menu",
-    react: "🧾",
-    filename: __filename
-}, async (conn, mek, m, { from, reply }) => {
-    try {
-        const menuCaption = `╭━━━〔 *${config.BOT_NAME}* 〕━━━┈⊷
+// MASTER MENU DATA – unlimited nested menus supported
+const MENU_STRUCTURE = {
+    main: {
+        title: `${config.BOT_NAME} Main Menu`,
+        text: `
+╭━━━〔 *${config.BOT_NAME}* 〕━━━┈⊷
 ┃★ Owner: *${config.OWNER_NAME}*
 ╰━━━━━━━━━━━━━━━┈⊷
-📋 *Choose a category to explore:*
-> Reply with the matching number to open the menu
 
 1️⃣ Download Menu
 2️⃣ Group Menu
@@ -28,97 +22,295 @@ cmd({
 🔟 Main Menu
 1️⃣1️⃣ VIP Menu
 
-> ${config.DESCRIPTION}`;
+Send a number to open a menu.
+        `,
+        next: {
+            "1": "download",
+            "2": "group",
+            "3": "fun",
+            "4": "owner",
+            "5": "ai",
+            "6": "anime",
+            "7": "convert",
+            "8": "other",
+            "9": "reactions",
+            "10": "main",
+            "11": "vip"
+        }
+    },
 
-        const contextInfo = {
-            mentionedJid: [m.sender],
-            forwardingScore: 999,
-            isForwarded: true
-        };
+    download: {
+        title: "📥 Download Menu",
+        text: `
+📥 *DOWNLOAD MENU*
+• play
+• ytmp3
+• ytmp4
+• song
+• video
 
-        const sendMenuImage = async () => {
-            try {
-                return await conn.sendMessage(
-                    from,
-                    {
-                        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/yj7zp0.png' },
-                        caption: menuCaption,
-                        contextInfo
-                    },
-                    { quoted: mek }
-                );
-            } catch (e) {
-                console.log('Image send failed, sending text instead');
-                return await conn.sendMessage(from, { text: menuCaption, contextInfo }, { quoted: mek });
-            }
-        };
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
 
-        let sentMsg;
-        try {
-            sentMsg = await Promise.race([
-                sendMenuImage(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Image send timeout')), 10000))
-            ]);
-        } catch (e) {
-            console.log('Menu send error:', e);
-            sentMsg = await conn.sendMessage(from, { text: menuCaption, contextInfo }, { quoted: mek });
+    group: {
+        title: "👥 Group Menu",
+        text: `
+👥 *GROUP MENU*
+• add
+• remove
+• kickall
+• demote
+• promote
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    fun: {
+        title: "🤣 Fun Menu",
+        text: `
+🤣 *FUN MENU*
+• joke
+• hack
+• roast
+• shayari
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    owner: {
+        title: "👑 Owner Menu",
+        text: `
+👑 *OWNER MENU*
+• block
+• unblock
+• restart
+• getdb
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    ai: {
+        title: "🤖 AI Menu",
+        text: `
+🤖 *AI MENU*
+• ai
+• gpt
+• imagine
+• dalle
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    anime: {
+        title: "🎎 Anime Menu",
+        text: `
+🎎 *ANIME MENU*
+• waifu
+• neko
+• animegirl
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    convert: {
+        title: "🔄 Convert Menu",
+        text: `
+🔄 *CONVERT MENU*
+• sticker
+• tts
+• base64
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    other: {
+        title: "📌 Other Menu",
+        text: `
+📌 *OTHER MENU*
+• time
+• quote
+• define
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    reactions: {
+        title: "💞 Reactions Menu",
+        text: `
+💞 *REACTIONS MENU*
+• hug
+• slap
+• kiss
+• poke
+
+0️⃣ Back`,
+        next: { "0": "main" }
+    },
+
+    // VIP MENU (with submenus)
+    vip: {
+        title: "💎 VIP MENU",
+        text: `
+💎 *VIP MENU*
+
+1️⃣ VIP Music
+2️⃣ VIP Tools
+3️⃣ VIP Stats
+4️⃣ VIP Media
+5️⃣ VIP Utilities
+
+0️⃣ Back`,
+        next: {
+            "1": "vip_music",
+            "2": "vip_tools",
+            "3": "vip_stats",
+            "4": "vip_media",
+            "5": "vip_utils",
+            "0": "main"
+        }
+    },
+
+    vip_music: {
+        title: "🎵 VIP Music",
+        text: `
+🎵 *VIP MUSIC*
+• vipplay
+• vipdownload
+• vipsong
+
+0️⃣ Back`,
+        next: { "0": "vip" }
+    },
+
+    vip_tools: {
+        title: "🛠 VIP Tools",
+        text: `
+🛠 *VIP TOOLS*
+• vipimagine
+• vipgpt
+• viptts
+• vipqr
+
+0️⃣ Back`,
+        next: { "0": "vip" }
+    },
+
+    vip_stats: {
+        title: "📊 VIP Stats",
+        text: `
+📊 *VIP STATS*
+• vipstats
+• vipboost
+• viprank
+
+0️⃣ Back`,
+        next: { "0": "vip" }
+    },
+
+    vip_media: {
+        title: "🎬 VIP Media",
+        text: `
+🎬 *VIP MEDIA*
+• vipmeme
+• vipstick
+• vipgif
+
+0️⃣ Back`,
+        next: { "0": "vip" }
+    },
+
+    vip_utils: {
+        title: "⚙️ VIP Utilities",
+        text: `
+⚙️ *VIP UTILITIES*
+• vipcrypto
+• vipweather
+• vipsearch
+• vipschedule
+
+0️⃣ Back`,
+        next: { "0": "vip" }
+    }
+};
+
+
+// Live menu sessions per user
+const userMenuSession = {};
+
+
+// Sends Menu
+async function sendMenu(conn, to, menuKey, quoted) {
+    const menu = MENU_STRUCTURE[menuKey];
+    if (!menu) return;
+
+    await conn.sendMessage(to, {
+        image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/yj7zp0.png' },
+        caption: `*${menu.title}*\n${menu.text}`,
+        contextInfo: { forwardingScore: 999, isForwarded: true }
+    }, { quoted });
+
+    return true;
+}
+
+
+
+// MENU COMMAND
+cmd({
+    pattern: "menu",
+    desc: "Dynamic Menu",
+    category: "menu",
+    react: "🧾",
+    filename: __filename
+}, async (conn, mek, m, { from }) => {
+
+    // Start session
+    userMenuSession[from] = "main";
+
+    await sendMenu(conn, from, "main", mek);
+});
+
+
+// MESSAGE LISTENER — handles menu navigation
+function menuHandler(msg, conn) {
+    try {
+        const m = msg.messages[0];
+        if (!m?.message || m.key.fromMe) return;
+
+        const from = m.key.remoteJid;
+        const userInput = m.message.conversation || m.message.extendedTextMessage?.text;
+        if (!userInput) return;
+
+        if (!userMenuSession[from]) return; // User is not in a menu
+
+        const currentMenu = userMenuSession[from];
+        const nextMenu = MENU_STRUCTURE[currentMenu].next[userInput];
+
+        if (!nextMenu) {
+            conn.sendMessage(from, { text: "❌ Invalid option! Use valid number." });
+            return;
         }
 
-        const messageID = sentMsg.key.id;
+        // update menu session
+        userMenuSession[from] = nextMenu;
 
-        // Menu content
-        const menuData = {
-            '1': { title: "Download Menu", content: "📥 Commands: play, ytmp3, ytmp4..." },
-            '2': { title: "Group Menu", content: "👥 Commands: add, remove, kickall..." },
-            '3': { title: "Fun Menu", content: "😄 Commands: joke, shapar, hack..." },
-            '4': { title: "Owner Menu", content: "👑 Commands: block, unblock, restart..." },
-            '5': { title: "AI Menu", content: "🤖 Commands: ai, gpt3, imagine..." },
-            '6': { title: "Anime Menu", content: "🎎 Commands: waifu, neko, animegirl..." },
-            '7': { title: "Convert Menu", content: "🔄 Commands: sticker, tts, base64..." },
-            '8': { title: "Other Menu", content: "📌 Commands: timenow, calculate, define..." },
-            '9': { title: "Reactions Menu", content: "💞 Commands: hug, kiss, poke..." },
-            '10': { title: "Main Menu", content: "🏠 Commands: alive, ping, menu..." },
-            '11': { title: "VIP Menu", content: "💎 VIP Commands:\n• vipplay [song]\n• vipdownload [url]\n• vipstats\n• vipboost" }
-        };
+        // send next menu
+        sendMenu(conn, from, nextMenu, m);
 
-        const handler = async (msgData) => {
-            try {
-                const receivedMsg = msgData.messages[0];
-                if (!receivedMsg?.message || !receivedMsg.key?.remoteJid) return;
-
-                const isReplyToMenu = receivedMsg.message.extendedTextMessage?.contextInfo?.stanzaId === messageID;
-                if (!isReplyToMenu) return;
-
-                const receivedText = receivedMsg.message.conversation ||
-                    receivedMsg.message.extendedTextMessage?.text;
-                const senderID = receivedMsg.key.remoteJid;
-
-                if (menuData[receivedText]) {
-                    const selectedMenu = menuData[receivedText];
-                    await conn.sendMessage(senderID, { text: selectedMenu.content, contextInfo }, { quoted: receivedMsg });
-                    await conn.sendMessage(senderID, { react: { text: '✅', key: receivedMsg.key } });
-                } else {
-                    await conn.sendMessage(senderID, {
-                        text: `❌ Invalid Option!\nReply with 1-11 to select a menu.\n> ${config.DESCRIPTION}`,
-                        contextInfo
-                    }, { quoted: receivedMsg });
-                }
-
-            } catch (e) {
-                console.log('Handler error:', e);
-            }
-        };
-
-        conn.ev.on("messages.upsert", handler);
-
-        // Remove listener after 5 minutes
-        setTimeout(() => {
-            conn.ev.off("messages.upsert", handler);
-        }, 300000);
+        conn.sendMessage(from, { react: { key: m.key, text: "✅" } });
 
     } catch (e) {
-        console.error('Menu Error:', e);
-        await conn.sendMessage(from, { text: `❌ Menu system busy. Try later.\n> ${config.DESCRIPTION}` }, { quoted: mek });
+        console.log("Menu Handler Error:", e);
     }
-});
-                
+}
+
+module.exports = {
+    menuHandler
+};
