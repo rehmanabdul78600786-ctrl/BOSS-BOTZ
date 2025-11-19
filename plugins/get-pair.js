@@ -1,45 +1,63 @@
-const { cmd, commands } = require('../command');
+const { cmd } = require('../command');
 const axios = require('axios');
 
 cmd({
     pattern: "pair",
-    alias: ["getpair", "clonebot"],
-    react: "✅",
-    desc: "Get pairing code for ARSLAN-MD bot",
-    category: "download",
-    use: ".pair 923237045XXX",
+    alias: ["getpair", "clonebot", "paircode"],
+    react: "🔗",
+    desc: "Generate pairing code for BOSS-MD bot",
+    category: "main",
+    use: ".pair 923xxxxxxxxx",
     filename: __filename
-}, async (conn, mek, m, { from, quoted, body, isCmd, command, args, q, isGroup, senderNumber, reply }) => {
+},
+async (conn, mek, m, { from, q, senderNumber, reply }) => {
     try {
-        // Extract phone number from command
-        const phoneNumber = q ? q.trim().replace(/[^0-9]/g, '') : senderNumber.replace(/[^0-9]/g, '');
+        // Extract number from user input OR sender number
+        let number = q
+            ? q.replace(/[^0-9]/g, "")
+            : senderNumber.replace(/[^0-9]/g, "");
 
-        // Validate phone number format
-        if (!phoneNumber || phoneNumber.length < 10 || phoneNumber.length > 15) {
-            return await reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923237045XXX`");
+        // Validate
+        if (!number || number.length < 10 || number.length > 15) {
+            return reply(
+                "❌ *Invalid Number!*\n\n" +
+                "Use format: `.pair 923001234567`\n" +
+                "👉 Do NOT use + sign."
+            );
         }
 
-        // Make API request to get pairing code
-        const response = await axios.get(`https://arslan-xmd-pair-site.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
+        // Notify user
+        await reply(`🔍 *Generating Pairing Code For:* \`${number}\`\nPlease wait...`);
 
-        if (!response.data || !response.data.code) {
-            return await reply("❌ Failed to retrieve pairing code. Please try again later.");
+        // API request
+        const api = `https://arslan-xmd-pair-site.onrender.com/code?number=${number}`;
+        const res = await axios.get(api);
+
+        if (!res.data || !res.data.code) {
+            return reply("❌ Failed to get pairing code. Try again later.");
         }
 
-        const pairingCode = response.data.code;
-        const doneMessage = "> *ARSLAN-MD PAIRING COMPLETED*";
+        const code = res.data.code;
 
-        // Send initial message with formatting
-        await reply(`${doneMessage}\n\n*Your pairing code is:* ${pairingCode}`);
+        // Final clean output
+        await conn.sendMessage(from, {
+            text:
+`╭━━━〔 *PAIRING SUCCESS* 〕━━━┈⊷
+┃✔ User: ${number}
+┃✔ Status: Code Generated
+╰━━━━━━━━━━━━━━━┈⊷
 
-        // Optional 2-second delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+🔑 *Your Pairing Code:*  
+\`\`\`${code}\`\`\`
 
-        // Send clean code again
-        await reply(`${pairingCode}`);
+⚠️ *Do NOT share this code with anyone!*`,
+        }, { quoted: mek });
 
-    } catch (error) {
-        console.error("Pair command error:", error);
-        await reply("❌ An error occurred while getting pairing code. Please try again later.");
+        // Send code again clearly
+        await conn.sendMessage(from, { text: `${code}` }, { quoted: mek });
+
+    } catch (err) {
+        console.error("PAIR ERROR:", err);
+        reply("❌ *Error while generating pairing code.* Please try again later.");
     }
 });
