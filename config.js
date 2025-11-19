@@ -13,7 +13,7 @@ AUTO_STATUS_REPLY: process.env.AUTO_STATUS_REPLY || "false",
 // make true if you want auto reply on status 
 AUTO_STATUS_REACT: process.env.AUTO_STATUS_REACT || "true",
 // make true if you want auto reply on status  
-AUTO_STATUS_MSG: process.env.AUTO_STATUS_MSG || "*SEEN YOUR STATUS BY ︎꧁☆❤️❀ᴰ𝖆ṛₖᙖ𝘰§§❀❤️☆꧂👀 🤍*",
+AUTO_STATUS_MSG: process.env.AUTO_STATUS_MSG || "*SEEN YOUR STATUS BY ︎꧁BOSS꧂🤍*",
 // set the auto reply massage on status reply  
 ANTI_DELETE: process.env.ANTI_DELETE || "true",
 // set true false for anti delete     
