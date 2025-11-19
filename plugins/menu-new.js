@@ -1,6 +1,5 @@
 const config = require('../config');
 const { cmd } = require('../command');
-const axios = require('axios');
 
 cmd({
     pattern: "menu",
@@ -10,6 +9,7 @@ cmd({
     filename: __filename
 }, async (conn, mek, m, { from, reply }) => {
     try {
+
         const contextInfo = {
             mentionedJid: [m.sender],
             forwardingScore: 999,
@@ -36,7 +36,6 @@ cmd({
 
 > ${config.DESCRIPTION}`;
 
-        // Menu data
         const menuData = {
             '1': { title: "Download Menu", content: "📥 Commands: play, ytmp3, ytmp4..." },
             '2': { title: "Group Menu", content: "👥 Commands: add, remove, kickall..." },
@@ -48,22 +47,21 @@ cmd({
             '8': { title: "Other Menu", content: "📌 Commands: timenow, calculate, define..." },
             '9': { title: "Reactions Menu", content: "💞 Commands: hug, kiss, poke..." },
             '10': { title: "Main Menu", content: "🏠 Commands: alive, ping, menu..." },
-            '11': { 
-                title: "VIP Menu", 
+            '11': {
+                title: "VIP Menu",
                 content: `💎 VIP Categories:
 
-1️⃣ Music
-2️⃣ Stats & Boost
-3️⃣ AI & Tools
-4️⃣ Fun & Media
-5️⃣ Utilities
+1️⃣ Music  
+2️⃣ Stats & Boost  
+3️⃣ AI & Tools  
+4️⃣ Fun & Media  
+5️⃣ Utilities  
 
-*Reply with 1-5 to view VIP commands for that category.*
+*Reply with 1-5 to view VIP commands.*
 0️⃣ Back to Main Menu`
             }
         };
 
-        // VIP sub-menu data
         const vipSubMenu = {
             '1': { title: "VIP Music", content: `🎵 VIP Music Commands:
 • vipplay [song]
@@ -87,7 +85,7 @@ cmd({
 • vipfun
 0️⃣ Back to VIP Menu` },
             '5': { title: "VIP Utilities", content: `🛠️ VIP Utilities Commands:
-• vipgroup [manage group]
+• vipgroup
 • vipautoreply
 • vipschedule
 • vipweather
@@ -97,7 +95,6 @@ cmd({
 0️⃣ Back to VIP Menu` }
         };
 
-        // Send menu function
         const sendMenu = async (caption, quoted) => {
             try {
                 return await conn.sendMessage(from, {
@@ -105,70 +102,77 @@ cmd({
                     caption,
                     contextInfo
                 }, { quoted });
-            } catch (e) {
+            } catch {
                 return await conn.sendMessage(from, { text: caption, contextInfo }, { quoted });
             }
         };
 
         const sentMenuMsg = await sendMenu(mainMenuCaption, mek);
-        const mainMessageID = sentMenuMsg.key.id;
+        const MENU_ID = sentMenuMsg.key.id;
 
-        // Handler
-        const handler = async (msgData) => {
+        let state = "MAIN";  // MAIN or VIP
+
+        const handler = async (data) => {
             try {
-                const receivedMsg = msgData.messages[0];
-                if (!receivedMsg?.message || !receivedMsg.key?.remoteJid) return;
+                const msg = data.messages[0];
+                if (!msg?.message || msg.key.fromMe) return;
 
-                const receivedText = receivedMsg.message.conversation || receivedMsg.message.extendedTextMessage?.text;
-                const senderID = receivedMsg.key.remoteJid;
+                const isReply = msg.message?.extendedTextMessage?.contextInfo?.stanzaId === MENU_ID;
+                if (!isReply) return;
 
-                const isReplyToMenu = receivedMsg.message.extendedTextMessage?.contextInfo?.stanzaId === mainMessageID;
-                if (!isReplyToMenu) return;
+                const text =
+                    msg.message.conversation ||
+                    msg.message.extendedTextMessage?.text ||
+                    "";
 
-                // Back logic
-                if (receivedText === '0') {
-                    await sendMenu(mainMenuCaption, receivedMsg);
-                    await conn.sendMessage(senderID, { react: { text: '↩️', key: receivedMsg.key } });
+                const option = text.trim();
+
+                // BACK LOGIC
+                if (option === "0") {
+                    if (state === "VIP") {
+                        await sendMenu(menuData['11'].content, msg);
+                        return;
+                    }
+                    state = "MAIN";
+                    await sendMenu(mainMenuCaption, msg);
                     return;
                 }
 
-                // Main menu selection
-                if (menuData[receivedText]) {
-                    const selectedMenu = menuData[receivedText];
-                    if (receivedText === '11') {
-                        await sendMenu(selectedMenu.content, receivedMsg);
-                    } else {
-                        await sendMenu(selectedMenu.content, receivedMsg);
+                // MAIN MENU
+                if (state === "MAIN" && menuData[option]) {
+
+                    if (option === "11") {
+                        state = "VIP";
+                        await sendMenu(menuData['11'].content, msg);
+                        return;
                     }
-                    await conn.sendMessage(senderID, { react: { text: '✅', key: receivedMsg.key } });
-                }
-                // VIP sub-menu selection
-                else if (vipSubMenu[receivedText]) {
-                    const selectedVIP = vipSubMenu[receivedText];
-                    await sendMenu(selectedVIP.content, receivedMsg);
-                    await conn.sendMessage(senderID, { react: { text: '✅', key: receivedMsg.key } });
-                }
-                else {
-                    await conn.sendMessage(senderID, {
-                        text: `❌ Invalid Option!\nReply with the correct number to select a menu.\n> ${config.DESCRIPTION}`,
-                        contextInfo
-                    }, { quoted: receivedMsg });
+
+                    await sendMenu(menuData[option].content, msg);
+                    return;
                 }
 
-            } catch (e) {
-                console.log('Handler error:', e);
+                // VIP SUBMENUS
+                if (state === "VIP" && vipSubMenu[option]) {
+                    await sendMenu(vipSubMenu[option].content, msg);
+                    return;
+                }
+
+                // INVALID OPTION
+                await conn.sendMessage(from, {
+                    text: "❌ Invalid option! Reply with a valid number."
+                });
+
+            } catch (err) {
+                console.log("Menu handler error:", err);
             }
         };
 
         conn.ev.on("messages.upsert", handler);
 
-        // Remove listener after 5 minutes
-        setTimeout(() => {
-            conn.ev.off("messages.upsert", handler);
-        }, 300000);
+        setTimeout(() => conn.ev.off("messages.upsert", handler), 300000);
 
-    } catch (e) {
-        console.error('Menu Error:', e);
-        await conn.sendMessage(from, { text: `❌ Menu system busy. Try later.\n> ${config.DESCRIPTION}` }, { quoted: mek });
+    } catch (err) {
+        console.error(err);
+        reply("❌ Error occurred while opening the menu.");
     }
 });
