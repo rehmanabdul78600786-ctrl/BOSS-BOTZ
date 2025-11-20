@@ -45,7 +45,7 @@ END:VCARD`;
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363348739987203@newsletter',
+                    newsletterJid: '1203634050611777123@newsletter',
                     newsletterName: '*✿.｡Ɓ𝗼𐍃𐍃.:* ☆*',
                     serverMessageId: 143
                 }
