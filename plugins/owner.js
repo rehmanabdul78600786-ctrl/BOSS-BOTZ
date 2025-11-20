@@ -30,7 +30,7 @@ END:VCARD`;
 
         // Send owner info with image
         await conn.sendMessage(from, {
-            image: { url: 'https://files.catbox.moe/yj7zp0.png' },
+            image: { url: 'https://files.catbox.moe/5nc2am.jpg' },
             caption: `╭━━〔 *✿.｡Ɓ𝗼𐍃𐍃.:* ☆* 〕━━┈⊷
 ┃◈╭─────────────·๏
 ┃◈┃• *Here is the owner details*
