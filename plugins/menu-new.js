@@ -98,7 +98,7 @@ cmd({
         const sendMenu = async (caption, quoted) => {
             try {
                 return await conn.sendMessage(from, {
-                    image: { url: config.MENU_IMAGE_URL || 'https://files.catbox.moe/yj7zp0.png' },
+                    image: { url: config.MENU_IMAGE_URL || 'https://i.ibb.co/Hf7526Rr/temp.jpg' },
                     caption,
                     contextInfo
                 }, { quoted });
