@@ -3,61 +3,41 @@ const axios = require('axios');
 
 cmd({
     pattern: "pair",
-    alias: ["getpair", "clonebot", "paircode"],
-    react: "🔗",
-    desc: "Generate pairing code for BOSS-MD bot",
-    category: "main",
-    use: ".pair 923xxxxxxxxx",
+    alias: ["getpair", "clonebot"],
+    react: "✅",
+    desc: "Get pairing code for 🔥🥀𝘽οꜱꜱ🥀🔥-MD bot",
+    category: "download",
+    use: ".pair 923237045XXX",
     filename: __filename
-},
-async (conn, mek, m, { from, q, senderNumber, reply }) => {
+}, async (conn, mek, m, { from, q, senderNumber, reply }) => {
     try {
-        // Extract number from user input OR sender number
-        let number = q
-            ? q.replace(/[^0-9]/g, "")
-            : senderNumber.replace(/[^0-9]/g, "");
+        // Use provided number or fallback to sender number
+        const phoneNumber = q ? q.trim().replace(/[^0-9]/g, '') : senderNumber.replace(/[^0-9]/g, '');
 
-        // Validate
-        if (!number || number.length < 10 || number.length > 15) {
-            return reply(
-                "❌ *Invalid Number!*\n\n" +
-                "Use format: `.pair 923001234567`\n" +
-                "👉 Do NOT use + sign."
-            );
+        // Validate phone number
+        if (!phoneNumber || phoneNumber.length < 10 || phoneNumber.length > 15) {
+            return reply("❌ Please provide a valid phone number without `+`\nExample: `.pair 923237045XXX`");
         }
 
-        // Notify user
-        await reply(`🔍 *Generating Pairing Code For:* \`${number}\`\nPlease wait...`);
+        // Fetch pairing code from API
+        const response = await axios.get(`https://arslan-xmd-pair-site.onrender.com/code?number=${encodeURIComponent(phoneNumber)}`);
 
-        // API request
-        const api = `https://arslan-xmd-pair-site.onrender.com/code?number=${number}`;
-        const res = await axios.get(api);
-
-        if (!res.data || !res.data.code) {
-            return reply("❌ Failed to get pairing code. Try again later.");
+        if (!response.data || !response.data.code) {
+            return reply("❌ Failed to retrieve pairing code. Please try again later.");
         }
 
-        const code = res.data.code;
+        const pairingCode = response.data.code;
+        const doneMessage = "✅ *×º𝓑𝖔𝙨𝙨º×-MD PAIRING COMPLETED*";
 
-        // Final clean output
-        await conn.sendMessage(from, {
-            text:
-`╭━━━〔 *PAIRING SUCCESS* 〕━━━┈⊷
-┃✔ User: ${number}
-┃✔ Status: Code Generated
-╰━━━━━━━━━━━━━━━┈⊷
+        // Send formatted message
+        await reply(`${doneMessage}\n\n*Your pairing code is:* ${pairingCode}`);
 
-🔑 *Your Pairing Code:*  
-\`\`\`${code}\`\`\`
+        // Optional: resend code after 2 seconds
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await reply(`💡 Your code: ${pairingCode}`);
 
-⚠️ *Do NOT share this code with anyone!*`,
-        }, { quoted: mek });
-
-        // Send code again clearly
-        await conn.sendMessage(from, { text: `${code}` }, { quoted: mek });
-
-    } catch (err) {
-        console.error("PAIR ERROR:", err);
-        reply("❌ *Error while generating pairing code.* Please try again later.");
+    } catch (error) {
+        console.error("Pair command error:", error);
+        await reply("❌ An error occurred while fetching the pairing code. Please try again later.");
     }
 });
