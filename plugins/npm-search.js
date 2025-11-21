@@ -10,55 +10,44 @@ cmd({
   use: ".npm <package-name>"
 }, async (conn, mek, msg, { from, args, reply }) => {
   try {
-    // Ensure a package name is provided
-    if (!args.length) {
-      return reply("❌ Please provide the name of the npm package you want to search for. Example: .npm express");
-    }
+    if (!args.length) 
+      return reply("❌ Please provide the npm package name. Example: .npm express");
 
     const packageName = args.join(" ");
     const apiUrl = `https://registry.npmjs.org/${encodeURIComponent(packageName)}`;
 
-    // Fetch package details from npm registry
     const response = await axios.get(apiUrl);
 
-    if (response.status !== 200 || !response.data) {
-      throw new Error("Package not found or an error occurred.");
-    }
+    if (!response.data) 
+      return reply("❌ Package not found.");
 
-    const packageData = response.data;
-    const latestVersion = packageData["dist-tags"]?.latest || "Not available";
-    const description = packageData.description || "No description available.";
+    const pkg = response.data;
+    const latestVersion = pkg["dist-tags"]?.latest || "N/A";
+    const description = pkg.description || "No description available.";
+    const license = pkg.license || "Unknown";
+    const repository = pkg.repository?.url?.replace(/^git\+/, "").replace(/\.git$/, "") || "N/A";
     const npmUrl = `https://www.npmjs.com/package/${packageName}`;
-    const license = packageData.license || "Unknown";
-    const repository = packageData.repository ? packageData.repository.url.replace(/^git\+/, "").replace(/\.git$/, "") : "Not available";
 
-    // Compose the message
     const message = `
-*BOSS-MD NPM SEARCH*
-*🔰 NPM PACKAGE:* ${packageName}
-*📄 DESCRIPTION:* ${description}
-*⏸️ LATEST VERSION:* ${latestVersion}
-*🪪 LICENSE:* ${license}
-*🪩 REPOSITORY:* ${repository}
+*📦 NPM PACKAGE INFO*
+*🔰 Package:* ${packageName}
+*📄 Description:* ${description}
+*⏸ Latest Version:* ${latestVersion}
+*🪪 License:* ${license}
+*🪩 Repository:* ${repository}
 *🔗 NPM URL:* ${npmUrl}
 `;
 
-    // Send the package info
     await conn.sendMessage(from, { text: message }, { quoted: mek });
 
   } catch (error) {
     console.error("[NPM ERROR]", error);
 
-    // Send detailed error logs
-    const errorMessage = `
-*❌ NPM Command Error Logs*
+    // Gracefully handle network / API errors
+    const errMsg = error.response 
+      ? `❌ Failed with status ${error.response.status}: ${error.response.statusText}`
+      : `❌ Error: ${error.message}`;
 
-*Error Message:* ${error.message || "Unknown"}
-*Stack Trace:* ${error.stack || "Not available"}
-*Timestamp:* ${new Date().toISOString()}
-`;
-
-    await conn.sendMessage(from, { text: errorMessage }, { quoted: mek });
-    reply("❌ An error occurred while fetching the npm package details.");
+    await conn.sendMessage(from, { text: errMsg }, { quoted: mek });
   }
 });
