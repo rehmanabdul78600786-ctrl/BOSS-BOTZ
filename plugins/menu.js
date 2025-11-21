@@ -72,7 +72,7 @@ Reply with 1–5 to open VIP menus.
 
         // Send main menu
         const sent = await conn.sendMessage(from, {
-            image: { url: config.MENU_IMAGE_URL || "https://files.catbox.moe/yj7zp0.png" },
+            image: { url: config.MENU_IMAGE_URL || "https://i.ibb.co/Hf7526Rr/temp.jpg" },
             caption: mainMenu,
             contextInfo: ctx
         }, { quoted: mek });
