@@ -40,7 +40,7 @@ cmd({
             isForwarded: true,
             forwardedNewsletterMessageInfo: {
                 newsletterJid: '120363405061777123@newsletter',
-                newsletterName: 'BOSS-MD' 
+                newsletterName: config.OWNER_NAME, 
                 serverMessageId: 143
             }
         };
