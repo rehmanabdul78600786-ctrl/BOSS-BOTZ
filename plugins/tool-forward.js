@@ -1,0 +1,126 @@
+const { cmd } = require("../command");
+
+// Safety Configuration
+const SAFETY = {
+    MAX_JIDS: 20,
+    BASE_DELAY: 2000,  // base delay between messages
+    EXTRA_DELAY: 4000, // extra delay every 10 messages
+};
+
+cmd({
+    pattern: "forward",
+    alias: ["fwd"],
+    desc: "Bulk forward media or text to groups",
+    category: "owner",
+    filename: __filename
+}, async (client, message, match, { isOwner }) => {
+    try {
+        // Owner check
+        if (!isOwner) return await message.reply("*📛 Owner Only Command*");
+
+        // Quoted message check
+        if (!message.quoted) return await message.reply("*🍁 Please reply to a message*");
+
+        // ===== JID Processing =====
+        let jidInput = typeof match === "string" ? match.trim() :
+                       Array.isArray(match) ? match.join(" ").trim() :
+                       (match && match.text) || "";
+
+        const rawJids = jidInput.split(/[\s,]+/).filter(jid => jid.trim().length > 0);
+
+        const validJids = rawJids
+            .map(jid => {
+                const cleanJid = jid.replace(/@g\.us$/i, "");
+                return /^\d+$/.test(cleanJid) ? `${cleanJid}@g.us` : null;
+            })
+            .filter(jid => jid !== null)
+            .slice(0, SAFETY.MAX_JIDS);
+
+        if (validJids.length === 0) {
+            return await message.reply(
+                "❌ No valid group JIDs found\n" +
+                "Examples:\n" +
+                ".fwd 12036341105556472@g.us,12036333393909948@g.us\n" +
+                ".fwd 12036341055156472 12036333393999948"
+            );
+        }
+
+        // ===== Prepare Message Content =====
+        let messageContent = {};
+        const mtype = message.quoted.mtype;
+
+        if (["imageMessage", "videoMessage", "audioMessage", "stickerMessage", "documentMessage"].includes(mtype)) {
+            const buffer = await message.quoted.download();
+
+            switch (mtype) {
+                case "imageMessage":
+                    messageContent = { image: buffer, caption: message.quoted.text || '', mimetype: message.quoted.mimetype || "image/jpeg" };
+                    break;
+                case "videoMessage":
+                    messageContent = { video: buffer, caption: message.quoted.text || '', mimetype: message.quoted.mimetype || "video/mp4" };
+                    break;
+                case "audioMessage":
+                    messageContent = { audio: buffer, mimetype: message.quoted.mimetype || "audio/mp4", ptt: message.quoted.ptt || false };
+                    break;
+                case "stickerMessage":
+                    messageContent = { sticker: buffer, mimetype: message.quoted.mimetype || "image/webp" };
+                    break;
+                case "documentMessage":
+                    messageContent = { document: buffer, mimetype: message.quoted.mimetype || "application/octet-stream", fileName: message.quoted.fileName || "document" };
+                    break;
+            }
+        } else if (mtype === "extendedTextMessage" || mtype === "conversation") {
+            messageContent = { text: message.quoted.text };
+        } else {
+            // Forward unsupported type as-is
+            messageContent = message.quoted;
+        }
+
+        // ===== Sending Loop with Progress =====
+        let successCount = 0;
+        const failedJids = [];
+
+        for (const [index, jid] of validJids.entries()) {
+            try {
+                await client.sendMessage(jid, messageContent);
+                successCount++;
+
+                // Progress update every 10 groups
+                if ((index + 1) % 10 === 0 || index === validJids.length - 1) {
+                    await message.reply(`🔄 Sent to ${index + 1}/${validJids.length} groups...`);
+                }
+
+                const delayTime = ((index + 1) % 10 === 0) ? SAFETY.EXTRA_DELAY : SAFETY.BASE_DELAY;
+                await new Promise(resolve => setTimeout(resolve, delayTime));
+
+            } catch (err) {
+                failedJids.push(jid.replace('@g.us',''));
+                await new Promise(resolve => setTimeout(resolve, SAFETY.BASE_DELAY));
+            }
+        }
+
+        // ===== Final Report =====
+        let report = `✅ *Forward Complete*\n\n` +
+                     `📤 Success: ${successCount}/${validJids.length}\n` +
+                     `📦 Content Type: ${mtype.replace('Message','') || 'text'}\n`;
+
+        if (failedJids.length > 0) {
+            report += `\n❌ Failed (${failedJids.length}): ${failedJids.slice(0,5).join(', ')}`;
+            if (failedJids.length > 5) report += ` +${failedJids.length - 5} more`;
+        }
+
+        if (rawJids.length > SAFETY.MAX_JIDS) {
+            report += `\n⚠️ Note: Limited to first ${SAFETY.MAX_JIDS} JIDs`;
+        }
+
+        await message.reply(report);
+
+    } catch (error) {
+        console.error("Forward Error:", error);
+        await message.reply(
+            `💢 Error: ${error.message.substring(0, 100)}\n\n` +
+            `Check:\n` +
+            `1. JID formatting\n2. Media type support\n3. Bot permissions`
+        );
+    }
+});
